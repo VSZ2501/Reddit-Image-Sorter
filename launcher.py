@@ -10,17 +10,36 @@ import emoji
 
 class Application(tk.Tk):
     def __init__(self):
-        # Configuration initiale de la fenêtre principale
         super().__init__()
-        self.title("Trieur d'Images Reddit")
-        self.geometry("1200x800")  # Fenêtre plus grande
-        self.configure(bg='#f0f0f0')  # Couleur de fond claire
-        self.subreddits = self.lire_subreddits()  # Lire les subreddits
-        self.creer_interface()  # Créer l'interface utilisateur
-        self.images = []  # Liste des images
+        self.title("Reddit Image Sorter")
+        self.state('zoomed')
+        self.configure(bg='#f0f0f0')
+        self.subreddits = self.lire_subreddits()
+        
+        # Modification pour pointer vers le dossier python-tri-photo
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        print(f"Script directory: {script_dir}")  # Debug
+        # On utilise le nom exact du dossier avec la bonne casse
+        self.source_dir = script_dir  # On utilise directement le dossier du script
+        print(f"Source directory: {self.source_dir}")  # Debug
+        
+        self.creer_interface()
+        self.images = []
         self.current_gif = None
         self.gif_frames = []
         self.current_frame = 0
+        
+        # Chargement différé des images
+        self.after(1, self.charger_images_initiales)
+
+    def charger_images_initiales(self):
+        print(f"Searching for images in: {self.source_dir}")  # Debug
+        self.images = [file for file in os.listdir(self.source_dir) 
+                      if file.lower().endswith(('.jpg', '.jpeg', '.png', '.gif'))]
+        print(f"Images trouvées : {len(self.images)}")  # Debug
+        if self.images:
+            print(f"First image found: {self.images[0]}")  # Debug
+            self.afficher_image()
 
     def lire_subreddits(self):
         # Lecture et organisation des subreddits depuis le fichier texte
@@ -51,7 +70,7 @@ class Application(tk.Tk):
         self.frame_gauche.pack(side=tk.LEFT, fill=tk.Y, padx=20, pady=20)
 
         # Titre pour la liste des subreddits
-        tk.Label(self.frame_gauche, text="Subreddits disponibles", 
+        tk.Label(self.frame_gauche, text="Available subreddits", 
                 font=('Helvetica', 12, 'bold'), bg='#ffffff').pack(pady=10)
 
         # Frame pour les checkboxes avec scrollbar
@@ -65,11 +84,11 @@ class Application(tk.Tk):
         # Modification de l'affichage des subreddits
         self.subreddit_vars = {}
         for category, subreddits in self.subreddits:
-            # Titre de catégorie
+            # Titre de catégorie avec emoji en couleur
             category_label = tk.Label(scrollable_frame, 
-                                    text=emoji.emojize(category),
+                                    text=category,
                                     bg='#ffffff',
-                                    font=('Helvetica', 13, 'bold'))
+                                    font=('TkDefaultFont', 16, 'bold'))  # Changement de police et taille
             category_label.pack(anchor='w', pady=(10,5))
             
             # Subreddits de la catégorie
@@ -89,7 +108,7 @@ class Application(tk.Tk):
         # Bouton de sélection du dossier source
         self.bouton_selectionner_dossier = tk.Button(
             self.frame_gauche,
-            text="Sélectionner le dossier source",
+            text="Change source folder",
             command=self.selectionner_dossier,
             bg='#4CAF50',
             fg='white',
@@ -115,10 +134,27 @@ class Application(tk.Tk):
         )
         self.canvas.pack(pady=10)
 
+        # Ajout des labels pour le nom et le poids du fichier
+        self.filename_label = tk.Label(
+            self.frame_droite,
+            text="",
+            bg='#ffffff',
+            font=('Helvetica', 10)
+        )
+        self.filename_label.pack()
+
+        self.filesize_label = tk.Label(
+            self.frame_droite,
+            text="",
+            bg='#ffffff',
+            font=('Helvetica', 10)
+        )
+        self.filesize_label.pack()
+
         # Bouton de tri
         self.bouton_trier = tk.Button(
             self.frame_droite,
-            text="Trier les images",
+            text="Sort images",
             command=self.trier_images,
             bg='#2196F3',
             fg='white',
@@ -130,22 +166,27 @@ class Application(tk.Tk):
         self.bouton_trier.pack(pady=20)
 
     def selectionner_dossier(self):
-        # Sélectionner le dossier source contenant les images
-        self.source_dir = filedialog.askdirectory(title="Sélectionner le dossier source")
-        if not self.source_dir:
-            return
-        self.images = [file for file in os.listdir(self.source_dir) if file.lower().endswith(('.jpg', '.jpeg', '.png', '.gif'))]
-        self.afficher_image()  # Afficher une image aléatoire
+        nouveau_dossier = filedialog.askdirectory(title="Sélectionner le dossier source")
+        if nouveau_dossier:  # Seulement si un nouveau dossier est sélectionné
+            self.source_dir = nouveau_dossier
+            self.images = [file for file in os.listdir(self.source_dir) 
+                         if file.lower().endswith(('.jpg', '.jpeg', '.png', '.gif'))]
+            self.afficher_image()
 
     def afficher_image(self):
         # Affiche une image aléatoire du dossier sélectionné
         # Gère à la fois les images statiques et les GIFs
         if not self.images:
-            messagebox.showinfo("Info", "Aucune image disponible dans le dossier sélectionné.")
+            messagebox.showinfo("Info", "No images available in selected folder.")
             return
 
         image_path = os.path.join(self.source_dir, random.choice(self.images))
         
+        # Mise à jour des labels nom et taille
+        self.filename_label.config(text=os.path.basename(image_path))
+        filesize = os.path.getsize(image_path) / (1024 * 1024)  # Conversion en Mo
+        self.filesize_label.config(text=f"{filesize:.2f} MB")
+
         # Gestion des GIF
         if image_path.lower().endswith('.gif'):
             self.gif_frames = []
