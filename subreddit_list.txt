@@ -1,16 +1,14 @@
-[CATEGORY]Général
-funny
-pics
-dankmemes
-memes
+[CATEGORY]Gaming🎮​
+gaming,2.5M,50,Video games discussion
+pcgaming,800K,30,PC gaming only
+ps5,400K,25,PlayStation 5 community
 
-[CATEGORY]Spécifique 🔧
-gaming
-science
-technology
+[CATEGORY]Technology🧑‍💻​
+technology,1.2M,100,Tech news and discussions
+programming,500K,40,Programming and coding
+hardware,300K,20,Computer hardware
 
-[CATEGORY]Gaming 🎮
-LeagueOfLegends
-Minecraft
-Pokemon
-EldenRing
+[CATEGORY]Art🎨​
+art,900K,60,General artwork
+digitalart,400K,30,Digital artwork only
+photography,700K,45,Photography enthusiasts

@@ -39,10 +39,10 @@ class Application(tk.Tk):
         print(f"Images trouvées : {len(self.images)}")  # Debug
         if self.images:
             print(f"First image found: {self.images[0]}")  # Debug
-            self.afficher_image()
+            # Attendre que la fenêtre soit rendue avant d'afficher l'image
+            self.after(100, self.afficher_image)  # Ajout d'un délai
 
     def lire_subreddits(self):
-        # Lecture et organisation des subreddits depuis le fichier texte
         categories = []
         current_category = None
         subreddits = []
@@ -55,20 +55,26 @@ class Application(tk.Tk):
                         if current_category:
                             categories.append((current_category, subreddits))
                             subreddits = []
-                        current_category = line[9:]  # Enlever le préfixe [CATEGORY]
+                        current_category = line[9:]
                     elif line:
-                        subreddits.append(line)
+                        # Séparation des informations par virgule
+                        subreddit_info = line.split(',')
+                        if len(subreddit_info) >= 4:  # Vérification qu'il y a bien 4 éléments
+                            subreddits.append(subreddit_info)
+                        else:
+                            # Rétrocompatibilité avec l'ancien format
+                            subreddits.append([line.strip(), "", "", ""])
                         
         if current_category and subreddits:
             categories.append((current_category, subreddits))
-            
+        
         return categories
 
     def creer_interface(self):
-        # Frame gauche 
+        # Frame gauche avec poids égal à la frame droite
         self.frame_gauche = tk.Frame(self, bg='#ffffff', relief=tk.RIDGE, bd=2)
-        self.frame_gauche.pack(side=tk.LEFT, fill=tk.Y, padx=20, pady=20)
-
+        self.frame_gauche.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=20, pady=20)
+        
         # Titre pour la liste des subreddits
         tk.Label(self.frame_gauche, text="Available subreddits", 
                 font=('Helvetica', 12, 'bold'), bg='#ffffff').pack(pady=10)
@@ -83,25 +89,69 @@ class Application(tk.Tk):
 
         # Modification de l'affichage des subreddits
         self.subreddit_vars = {}
+        
+        # Ajout des en-têtes de colonnes
+        headers_frame = tk.Frame(scrollable_frame, bg='#ffffff')
+        headers_frame.pack(fill='x')
+        
+        headers = ["Subreddit", "Members", "Posts/24h", "Specifics"]
+        for i, header in enumerate(headers):
+            header_label = tk.Label(headers_frame, 
+                                  text=header,
+                                  bg='#ffffff',
+                                  font=('Helvetica', 9, 'bold'))
+            header_label.grid(row=0, column=i, padx=(20 if i==0 else 0, 30), sticky='w')
+        
+        # Configuration des colonnes pour les en-têtes
+        headers_frame.grid_columnconfigure(0, minsize=150)
+        headers_frame.grid_columnconfigure(1, minsize=100)
+        headers_frame.grid_columnconfigure(2, minsize=100)
+        headers_frame.grid_columnconfigure(3, minsize=200)
+        
         for category, subreddits in self.subreddits:
-            # Titre de catégorie avec emoji en couleur
+            # Titre de catégorie
             category_label = tk.Label(scrollable_frame, 
                                     text=category,
                                     bg='#ffffff',
-                                    font=('TkDefaultFont', 16, 'bold'))  # Changement de police et taille
+                                    font=('TkDefaultFont', 16, 'bold'))
             category_label.pack(anchor='w', pady=(10,5))
             
             # Subreddits de la catégorie
-            for subreddit in subreddits:
-                var = tk.BooleanVar()
-                chk = tk.Checkbutton(scrollable_frame, text=subreddit, 
-                                   variable=var, bg='#ffffff', 
-                                   font=('Helvetica', 10))
-                chk.pack(anchor='w', pady=2)
-                self.subreddit_vars[subreddit] = var
+            for subreddit_info in subreddits:
+                subreddit_frame = tk.Frame(scrollable_frame, bg='#ffffff')
+                subreddit_frame.pack(fill='x')
+                
+                # Configuration des colonnes
+                subreddit_frame.grid_columnconfigure(0, minsize=150)
+                subreddit_frame.grid_columnconfigure(1, minsize=100)
+                subreddit_frame.grid_columnconfigure(2, minsize=100)
+                subreddit_frame.grid_columnconfigure(3, minsize=200)
+                
+                # Contenu des colonnes avec grid
+                for i, info in enumerate(subreddit_info):
+                    if i == 0:
+                        var = tk.BooleanVar()
+                        chk = tk.Checkbutton(subreddit_frame, 
+                                           text=info,
+                                           variable=var,
+                                           bg='#ffffff')
+                        chk.grid(row=0, column=i, padx=(20, 30), sticky='w')
+                        self.subreddit_vars[info] = var
+                    else:
+                        tk.Label(subreddit_frame,
+                               text=info,
+                               bg='#ffffff').grid(row=0, column=i, padx=(0, 30), sticky='w')
 
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw", width=canvas.winfo_width())
         canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Ajout d'une fonction pour mettre à jour la largeur du scrollable_frame
+        def configure_scroll_region(event):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+            canvas.create_window((0, 0), window=scrollable_frame, anchor="nw", width=event.width)
+        
+        canvas.bind('<Configure>', configure_scroll_region)
+        
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
         
@@ -119,7 +169,7 @@ class Application(tk.Tk):
         )
         self.bouton_selectionner_dossier.pack(pady=20)
 
-        # Frame droite 
+        # Frame droite avec même poids que la frame gauche
         self.frame_droite = tk.Frame(self, bg='#ffffff', relief=tk.RIDGE, bd=2)
         self.frame_droite.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=20, pady=20)
 
@@ -174,10 +224,13 @@ class Application(tk.Tk):
             self.afficher_image()
 
     def afficher_image(self):
-        # Affiche une image aléatoire du dossier sélectionné
-        # Gère à la fois les images statiques et les GIFs
         if not self.images:
             messagebox.showinfo("Info", "No images available in selected folder.")
+            return
+
+        # Attendre que le canvas ait des dimensions non nulles
+        if self.canvas.winfo_width() <= 0 or self.canvas.winfo_height() <= 0:
+            self.after(100, self.afficher_image)
             return
 
         image_path = os.path.join(self.source_dir, random.choice(self.images))
@@ -192,8 +245,18 @@ class Application(tk.Tk):
             self.gif_frames = []
             gif = Image.open(image_path)
             
+            # Obtenir les dimensions du canvas
+            canvas_width = self.canvas.winfo_width()
+            canvas_height = self.canvas.winfo_height()
+            
             for frame in ImageSequence.Iterator(gif):
-                frame = frame.resize((600, 400), Image.LANCZOS)
+                # Calculer les nouvelles dimensions en préservant le ratio
+                img_width, img_height = frame.size
+                ratio = min(canvas_width/img_width, canvas_height/img_height)
+                new_width = int(img_width * ratio)
+                new_height = int(img_height * ratio)
+                
+                frame = frame.resize((new_width, new_height), Image.LANCZOS)
                 self.gif_frames.append(ImageTk.PhotoImage(frame))
             
             self.current_frame = 0
@@ -202,9 +265,24 @@ class Application(tk.Tk):
         else:
             self.current_gif = None
             image = Image.open(image_path)
-            image = image.resize((600, 400), Image.LANCZOS)
+            
+            # Obtenir les dimensions du canvas
+            canvas_width = self.canvas.winfo_width()
+            canvas_height = self.canvas.winfo_height()
+            
+            # Calculer les nouvelles dimensions en préservant le ratio
+            img_width, img_height = image.size
+            ratio = min(canvas_width/img_width, canvas_height/img_height)
+            new_width = int(img_width * ratio)
+            new_height = int(img_height * ratio)
+            
+            image = image.resize((new_width, new_height), Image.LANCZOS)
             self.photo = ImageTk.PhotoImage(image)
-            self.canvas.create_image(0, 0, anchor=tk.NW, image=self.photo)
+            
+            # Centrer l'image dans le canvas
+            x = (canvas_width - new_width) // 2
+            y = (canvas_height - new_height) // 2
+            self.canvas.create_image(x, y, anchor=tk.NW, image=self.photo)
 
     def update_gif_frame(self):
         # Met à jour l'animation des GIFs frame par frame
@@ -245,11 +323,19 @@ class Application(tk.Tk):
 
         self.afficher_image()
         
-        # Afficher "Fini" et fermer après 1.3 secondes
+        # Modification de la fenêtre de confirmation
         finish_window = tk.Toplevel(self)
         finish_window.geometry("200x100")
-        finish_window.title("Terminé")
-        tk.Label(finish_window, text="Fini!", 
+        finish_window.title("Finished")
+        
+        # Centrer la fenêtre
+        finish_window.transient(self)
+        finish_window.grab_set()
+        x = self.winfo_x() + (self.winfo_width() - 200) // 2
+        y = self.winfo_y() + (self.winfo_height() - 100) // 2
+        finish_window.geometry(f"+{x}+{y}")
+        
+        tk.Label(finish_window, text="Done!", 
                 font=('Helvetica', 16, 'bold')).pack(expand=True)
         self.after(1300, lambda: [finish_window.destroy(), self.destroy()])
 
