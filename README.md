@@ -97,7 +97,7 @@ To update the categories and subreddits:
    - Example format:
      ```
      [CATEGORY]Nature
-     EarthPorn, 2000000, 500, Amazing landscapes
+     Earth, 2000000, 500, Amazing landscapes
      ```
 
 ---
